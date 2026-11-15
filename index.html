@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Store</title>
+    <!-- Supabase CDN Script -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --text-main: #111827;
+            --text-muted: #6b7280;
+            --border: #e5e7eb;
+            --accent: #111827;
+            --surface: #f9fafb;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0 20px 60px;
+            -webkit-font-smoothing: antialiased;
+        }
+        .container { max-width: 680px; margin: 0 auto; }
+        header {
+            position: sticky;
+            top: 0;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(8px);
+            padding: 20px 0;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            z-index: 10;
+        }
+        .brand { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; margin: 0; color: var(--text-main); }
+        .controls { display: flex; align-items: center; gap: 10px; flex: 1; justify-content: flex-end; min-width: 240px; }
+        .search-input {
+            width: 100%; max-width: 260px; padding: 8px 14px; font-size: 14px;
+            border: 1px solid var(--border); border-radius: 6px; background: var(--surface);
+            color: var(--text-main); outline: none; transition: border-color 0.2s, background 0.2s;
+        }
+        .search-input:focus { border-color: var(--text-main); background: #fff; }
+        .btn-outline {
+            background: transparent; color: var(--text-main); border: 1px solid var(--border);
+            padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 500;
+            cursor: pointer; white-space: nowrap; transition: all 0.15s;
+        }
+        .btn-outline:hover { border-color: var(--text-main); background: var(--surface); }
+        .btn-outline.active { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+        .instruction-banner {
+            background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);
+            font-size: 13.5px; padding: 10px 14px; border-radius: 6px; margin-bottom: 32px; text-align: center;
+        }
+        .admin-panel {
+            display: none; background: var(--surface); border: 1px solid var(--border);
+            border-radius: 8px; padding: 20px; margin-bottom: 40px; flex-direction: column; gap: 14px;
+        }
+        .admin-panel-title {
+            font-size: 13px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.05em; color: var(--text-muted); margin: 0;
+        }
+        .input-group { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        @media (max-width: 520px) { .input-group { grid-template-columns: 1fr; } }
+        .field {
+            width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px;
+            font-size: 14px; font-family: inherit; background: #fff; color: var(--text-main); outline: none;
+        }
+        .field:focus { border-color: var(--text-main); }
+        textarea.field { resize: vertical; min-height: 75px; }
+        .file-label {
+            display: flex; align-items: center; justify-content: space-between; padding: 9px 12px;
+            border: 1px dashed #cbd5e1; border-radius: 6px; background: #fff;
+            font-size: 13px; color: var(--text-muted); cursor: pointer;
+        }
+        .file-label input { font-size: 13px; }
+        .btn-primary {
+            background: var(--accent); color: #fff; border: none; padding: 10px 20px;
+            border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer;
+            align-self: flex-start; transition: opacity 0.2s;
+        }
+        .btn-primary:hover { opacity: 0.88; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .feed { display: flex; flex-direction: column; gap: 44px; }
+        .article { position: relative; padding-bottom: 44px; border-bottom: 1px solid var(--border); }
+        .article:last-child { border-bottom: none; padding-bottom: 0; }
+        .article-link { text-decoration: none; color: inherit; display: block; }
+        .article-img-wrap { margin-bottom: 18px; border-radius: 6px; overflow: hidden; background: var(--surface); }
+        .article-link img { width: 100%; height: auto; display: block; transition: opacity 0.25s ease; }
+        .article-link:hover img { opacity: 0.94; }
+        .article-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+        .article-domain { font-size: 12px; font-weight: 500; color: var(--text-muted); letter-spacing: 0.02em; }
+        .article-title {
+            margin: 0 0 8px 0; font-size: 22px; font-weight: 650; letter-spacing: -0.02em;
+            line-height: 1.3; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;
+        }
+        .arrow { font-size: 17px; color: var(--text-muted); transition: transform 0.2s ease, color 0.2s ease; }
+        .article-link:hover .arrow { transform: translate(3px, -3px); color: var(--text-main); }
+        .article-desc { margin: 0; font-size: 15px; line-height: 1.65; color: #4b5563; white-space: pre-line; }
+        .delete-btn {
+            display: none; position: absolute; top: 12px; right: 12px;
+            background: rgba(17, 24, 39, 0.85); color: #fff; border: none; border-radius: 4px;
+            padding: 5px 10px; font-size: 12px; font-weight: 500; cursor: pointer; z-index: 2;
+        }
+        .delete-btn:hover { background: #dc2626; }
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-size: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1 class="brand">Web Store</h1>
+        <div class="controls">
+            <input type="text" id="searchInput" class="search-input" placeholder="Search..." oninput="filterWebsites()">
+            <button class="btn-outline" id="loginBtn" onclick="toggleAdmin()">Admin</button>
+        </div>
+    </header>
+
+    <div class="instruction-banner">
+        Click on the photo to visit any website.
+    </div>
+
+    <section class="admin-panel" id="adminPanel">
+        <p class="admin-panel-title">New Entry</p>
+        <div class="input-group">
+            <input type="text" id="siteName" class="field" placeholder="Website Title" required>
+            <input type="url" id="siteUrl" class="field" placeholder="https://example.com" required>
+        </div>
+        <label class="file-label">
+            <span>Select Image</span>
+            <input type="file" id="siteImage" accept="image/*" required>
+        </label>
+        <textarea id="siteDesc" class="field" placeholder="Write a short description or note..."></textarea>
+        <button class="btn-primary" id="publishBtn" onclick="addWebsite()">Publish</button>
+    </section>
+
+    <main class="feed" id="websiteGrid">
+        <div class="empty-state">Loading websites...</div>
+    </main>
+</div>
+
+<script>
+    const SUPABASE_URL = "https://pwbvtxlsffqjeyerykgd.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_K2CdujQGLlipAEViEZLOng_u4gZ3mAj";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const ADMIN_PASSWORD = "admin123";
+    let isAdmin = false;
+    let allSites = [];
+
+    window.onload = function() {
+        fetchWebsites();
+    };
+
+    function toggleAdmin() {
+        const btn = document.getElementById('loginBtn');
+        const panel = document.getElementById('adminPanel');
+
+        if (!isAdmin) {
+            const pass = prompt("Enter Admin Password:");
+            if (pass === ADMIN_PASSWORD) {
+                isAdmin = true;
+                panel.style.display = 'flex';
+                btn.innerText = 'Exit Admin';
+                btn.classList.add('active');
+                filterWebsites();
+            } else if (pass !== null) {
+                alert("Incorrect password.");
+            }
+        } else {
+            isAdmin = false;
+            panel.style.display = 'none';
+            btn.innerText = 'Admin';
+            btn.classList.remove('active');
+            filterWebsites();
+        }
+    }
+
+    async function fetchWebsites() {
+        const grid = document.getElementById('websiteGrid');
+        const { data, error } = await supabaseClient
+            .from('websites')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error(error);
+            grid.innerHTML = '<div class="empty-state">Error loading data: ' + error.message + '</div>';
+            return;
+        }
+
+        allSites = data || [];
+        filterWebsites();
+    }
+
+    async function addWebsite() {
+        const name = document.getElementById('siteName').value.trim();
+        let url = document.getElementById('siteUrl').value.trim();
+        const desc = document.getElementById('siteDesc').value.trim();
+        const imageInput = document.getElementById('siteImage');
+        const publishBtn = document.getElementById('publishBtn');
+
+        if (!name || !url || imageInput.files.length === 0) {
+            alert("Please enter title, URL, and select an image.");
+            return;
+        }
+
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = 'https://' + url;
+        }
+
+        publishBtn.disabled = true;
+        publishBtn.innerText = "Uploading...";
+
+        try {
+            const file = imageInput.files[0];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Date.now()}.${fileExt}`;
+
+            const { error: uploadError } = await supabaseClient.storage
+                .from('site-images')
+                .upload(fileName, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: urlData } = supabaseClient.storage
+                .from('site-images')
+                .getPublicUrl(fileName);
+
+            const imageUrl = urlData.publicUrl;
+
+            const { error: dbError } = await supabaseClient
+                .from('websites')
+                .insert([{ name, url, desc, image: imageUrl }]);
+
+            if (dbError) throw dbError;
+
+            document.getElementById('siteName').value = '';
+            document.getElementById('siteUrl').value = '';
+            document.getElementById('siteDesc').value = '';
+            imageInput.value = '';
+
+            await fetchWebsites();
+        } catch (err) {
+            alert("Upload failed: " + err.message);
+        } finally {
+            publishBtn.disabled = false;
+            publishBtn.innerText = "Publish";
+        }
+    }
+
+    async function deleteWebsite(id, imageUrl) {
+        if (!confirm("Remove this entry?")) return;
+
+        try {
+            const { error } = await supabaseClient
+                .from('websites')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+
+            const fileName = imageUrl.split('/').pop();
+            await supabaseClient.storage.from('site-images').remove([fileName]);
+
+            await fetchWebsites();
+        } catch (err) {
+            alert("Delete failed: " + err.message);
+        }
+    }
+
+    function getDomain(url) {
+        try {
+            return new URL(url).hostname.replace('www.', '');
+        } catch {
+            return '';
+        }
+    }
+
+    function filterWebsites() {
+        const grid = document.getElementById('websiteGrid');
+        const searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
+        grid.innerHTML = '';
+
+        const filteredSites = allSites.filter(site => {
+            const matchName = site.name.toLowerCase().includes(searchQuery);
+            const matchDesc = (site.desc || "").toLowerCase().includes(searchQuery);
+            return matchName || matchDesc;
+        });
+
+        if (filteredSites.length === 0) {
+            if (allSites.length === 0) {
+                grid.innerHTML = '<div class="empty-state">No websites published yet. Click <strong>Admin</strong> to add your first entry.</div>';
+            } else {
+                grid.innerHTML = `<div class="empty-state">No results found for "${searchQuery}".</div>`;
+            }
+            return;
+        }
+
+        filteredSites.forEach(site => {
+            const domain = getDomain(site.url);
+            grid.innerHTML += `
+                <article class="article">
+                    <button class="delete-btn" onclick="deleteWebsite(${site.id}, '${site.image}')" style="display: ${isAdmin ? 'block' : 'none'}">Delete</button>
+                    <a href="${site.url}" target="_blank" class="article-link">
+                        <div class="article-img-wrap">
+                            <img src="${site.image}" alt="${site.name}">
+                        </div>
+                        <div class="article-meta">
+                            <span class="article-domain">${domain}</span>
+                        </div>
+                        <h2 class="article-title">${site.name} <span class="arrow">↗</span></h2>
+                        ${site.desc ? `<p class="article-desc">${site.desc}</p>` : ''}
+                    </a>
+                </article>
+            `;
+        });
+    }
+</script>
+
+</body>
+</html>
